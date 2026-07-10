@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { ImageResponse } from 'next/og';
 import sharp from 'sharp';
 import { timingSafeEqual } from 'crypto';
@@ -57,11 +57,13 @@ export async function GET(req: NextRequest) {
 
   const devFont = loadDevFont();
 
+  const timeZone = process.env.DISPLAY_TIMEZONE || 'UTC';
   const now = new Date();
   const headerDate = now
-    .toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+    .toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'short', day: 'numeric' })
     .toUpperCase();
   const headerTime = now.toLocaleTimeString('en-US', {
+    timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -69,6 +71,10 @@ export async function GET(req: NextRequest) {
   const subheaderText = weather
     ? `${headerTime} | ${weather.tempF}°F ${weather.condition}`
     : headerTime;
+
+  if (req.nextUrl.searchParams.get('format') === 'json') {
+    return NextResponse.json({ headerDate, headerTime, subheaderText, events, notification, weather });
+  }
 
   const rendered = new ImageResponse(
     (

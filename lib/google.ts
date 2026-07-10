@@ -7,6 +7,14 @@ export interface CalendarEventSummary {
   dayLabel: string;
 }
 
+// Fixed on purpose - the desk doesn't move, and the server's own
+// timezone varies by environment (UTC on Vercel, local time in dev),
+// so relying on it would show the wrong time on the physical display.
+const TIMEZONE = process.env.DISPLAY_TIMEZONE || 'UTC';
+
+const dayKey = (d: Date) =>
+  d.toLocaleDateString('en-US', { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
+
 let cachedClient: calendar_v3.Calendar | null = null;
 
 function getCalendarClient(): calendar_v3.Calendar {
@@ -47,12 +55,12 @@ export async function fetchNextEvents(
     const startDate = start ? new Date(start) : null;
 
     const time = startDate
-      ? startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+      ? startDate.toLocaleTimeString('en-US', { timeZone: TIMEZONE, hour: 'numeric', minute: '2-digit' })
       : 'All day';
 
-    const isToday = startDate ? startDate.toDateString() === today.toDateString() : false;
+    const isToday = startDate ? dayKey(startDate) === dayKey(today) : false;
     const dayLabel = startDate
-      ? startDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+      ? startDate.toLocaleDateString('en-US', { timeZone: TIMEZONE, weekday: 'short' }).toUpperCase()
       : '';
 
     return { time, title: event.summary ?? '(No title)', isToday, dayLabel };
