@@ -83,12 +83,11 @@ function classic({ events, notification, weather, now, timeZone, fontFamily, wid
   );
 }
 
-function paper({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
-  const headerDate = now
-    .toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'long', day: 'numeric' })
-    .toUpperCase();
-  const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
-  const subheaderText = weather ? `updated ${headerTime} · ${weather.tempF}°F ${weather.condition}` : `updated ${headerTime}`;
+function bigDate({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
+  const dayNumber = now.toLocaleDateString('en-US', { timeZone, day: 'numeric' });
+  const weekday = now.toLocaleDateString('en-US', { timeZone, weekday: 'long' });
+  const monthYear = now.toLocaleDateString('en-US', { timeZone, month: 'long', year: 'numeric' });
+  const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
     <div
@@ -99,19 +98,31 @@ function paper({ events, notification, weather, now, timeZone, fontFamily, width
         flexDirection: 'column',
         backgroundColor: '#fff',
         fontFamily,
-        padding: s(20),
-        position: 'relative',
       }}
     >
-      <div style={{ position: 'absolute', display: 'flex', top: s(9), left: s(9), right: s(9), bottom: s(9), border: `${s(1)}px solid #000` }} />
-      <div style={{ position: 'absolute', display: 'flex', top: s(13), left: s(13), right: s(13), bottom: s(13), border: `${s(1)}px solid #000` }} />
-
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: s(8) }}>
-        <span style={{ fontSize: s(16), letterSpacing: s(4), color: '#000' }}>{headerDate}</span>
-        <span style={{ fontSize: s(9), letterSpacing: s(1), color: '#333', marginTop: s(5) }}>{subheaderText}</span>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          backgroundColor: '#000',
+          padding: `${s(8)}px ${s(10)}px`,
+        }}
+      >
+        <span style={{ fontSize: s(30), fontWeight: 700, color: '#fff', lineHeight: 1 }}>{dayNumber}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', marginLeft: s(8) }}>
+          <span style={{ fontSize: s(13), color: '#fff' }}>{weekday}</span>
+          <span style={{ fontSize: s(9), color: '#ccc' }}>{monthYear}</span>
+        </div>
+        <span style={{ fontSize: s(8), color: '#ccc', marginLeft: 'auto' }}>updated {headerTime}</span>
       </div>
+      {weather && (
+        <div style={{ display: 'flex', fontSize: s(9), color: '#333', padding: `${s(4)}px ${s(10)}px 0` }}>
+          {weather.tempF}°F {weather.condition}
+        </div>
+      )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', marginTop: s(18), paddingLeft: s(6), paddingRight: s(6) }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: `${s(8)}px ${s(10)}px` }}>
         {events.length === 0 ? (
           <span style={{ fontSize: s(12), color: '#000' }}>No upcoming events</span>
         ) : (
@@ -121,16 +132,15 @@ function paper({ events, notification, weather, now, timeZone, fontFamily, width
               style={{
                 display: 'flex',
                 flexDirection: 'row',
-                alignItems: 'baseline',
-                marginTop: i === 0 ? 0 : s(12),
+                padding: `${s(4)}px 0`,
+                borderBottom: i === events.length - 1 ? 'none' : `${s(1)}px solid #ccc`,
               }}
             >
-              <span style={{ fontSize: s(12), color: '#000' }}>
+              <span style={{ fontSize: s(11), width: s(70), color: '#333' }}>
                 {!event.isToday ? `${event.dayLabel} ` : ''}
-                {event.title}
+                {event.time}
               </span>
-              <div style={{ flex: 1, height: s(1), borderBottom: `${s(1)}px dashed #555`, marginLeft: s(4), marginRight: s(4) }} />
-              <span style={{ fontSize: s(12), color: '#000' }}>{event.time}</span>
+              <span style={{ fontSize: s(12), fontWeight: 700, color: '#000' }}>{event.title}</span>
             </div>
           ))
         )}
@@ -139,16 +149,74 @@ function paper({ events, notification, weather, now, timeZone, fontFamily, width
       {notification && (
         <div
           style={{
-            position: 'absolute',
             display: 'flex',
-            left: s(26),
-            right: s(26),
-            bottom: s(24),
             justifyContent: 'center',
+            borderTop: `${s(1)}px solid #000`,
+            padding: `${s(8)}px ${s(20)}px`,
             fontSize: s(11),
             color: '#000',
           }}
         >
+          &ldquo; {notification.sender}: {notification.message} &rdquo;
+        </div>
+      )}
+    </div>
+  );
+}
+
+function newspaper({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
+  const headerDate = now.toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'short', day: 'numeric' });
+  const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+  const subheaderText = weather
+    ? `${headerDate} - updated ${headerTime} - ${weather.tempF}°F ${weather.condition}`
+    : `${headerDate} - updated ${headerTime}`;
+
+  return (
+    <div
+      style={{
+        width: s(width),
+        height: s(height),
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: '#fff',
+        fontFamily,
+        padding: `${s(14)}px ${s(18)}px`,
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <span style={{ fontSize: s(19), fontWeight: 700 }}>The Daily Agenda</span>
+        <span style={{ fontSize: s(9), marginTop: s(2) }}>{subheaderText}</span>
+        <div style={{ height: s(2), backgroundColor: '#000', marginTop: s(5), width: '100%' }} />
+        <div style={{ height: s(1), backgroundColor: '#000', marginTop: s(2), width: '100%' }} />
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', marginTop: s(10), flex: 1 }}>
+        {events.length === 0 ? (
+          <span style={{ fontSize: s(12) }}>No upcoming events</span>
+        ) : (
+          events.map((event, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                borderTop: `${s(1)}px solid #000`,
+                paddingTop: s(5),
+                marginTop: i === 0 ? 0 : s(5),
+                fontSize: s(12),
+              }}
+            >
+              <span>
+                {event.time} &mdash; {event.title}
+                {!event.isToday ? ` (${event.dayLabel})` : ''}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {notification && (
+        <div style={{ display: 'flex', justifyContent: 'center', fontSize: s(10), marginTop: s(6) }}>
           {notification.sender}: {notification.message}
         </div>
       )}
@@ -156,10 +224,69 @@ function paper({ events, notification, weather, now, timeZone, fontFamily, width
   );
 }
 
-function badge({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
-  const dayNumber = now.toLocaleDateString('en-US', { timeZone, day: 'numeric' });
-  const weekday = now.toLocaleDateString('en-US', { timeZone, weekday: 'long' }).toUpperCase();
-  const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+function ticket({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
+  const headerDate = now.toLocaleDateString('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
+  const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
+
+  return (
+    <div
+      style={{
+        width: s(width),
+        height: s(height),
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: '#fff',
+        fontFamily,
+        border: `${s(2)}px dashed #000`,
+        padding: `${s(12)}px ${s(16)}px`,
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: s(15), fontWeight: 700 }}>{headerDate}</span>
+        <span style={{ fontSize: s(10), color: '#333' }}>
+          {weather ? `${weather.tempF}°F ${weather.condition}` : `updated ${headerTime}`}
+        </span>
+      </div>
+      <span style={{ fontSize: s(9), color: '#333', marginTop: s(1) }}>updated {headerTime}</span>
+
+      <div style={{ display: 'flex', flexDirection: 'column', marginTop: s(8), flex: 1 }}>
+        {events.length === 0 ? (
+          <span style={{ fontSize: s(12) }}>No upcoming events</span>
+        ) : (
+          events.map((event, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                borderTop: `${s(1)}px dashed #000`,
+                paddingTop: s(6),
+                marginTop: i === 0 ? 0 : s(6),
+              }}
+            >
+              <span style={{ fontSize: s(12) }}>
+                {event.title}
+                {!event.isToday ? ` (${event.dayLabel})` : ''}
+              </span>
+              <span style={{ fontSize: s(12), fontWeight: 700 }}>{event.time}</span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {notification && (
+        <div style={{ display: 'flex', borderTop: `${s(2)}px dashed #000`, paddingTop: s(8), marginTop: s(8), fontSize: s(11) }}>
+          &raquo; {notification.sender}: {notification.message}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function chips({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
+  const headerDate = now.toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'short', day: 'numeric' });
+  const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
   const subheaderText = weather ? `updated ${headerTime} · ${weather.tempF}°F ${weather.condition}` : `updated ${headerTime}`;
 
   return (
@@ -174,55 +301,33 @@ function badge({ events, notification, weather, now, timeZone, fontFamily, width
         padding: s(14),
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: s(10) }}>
-        <div
-          style={{
-            display: 'flex',
-            width: s(34),
-            height: s(34),
-            borderRadius: s(34),
-            backgroundColor: '#000',
-            color: '#fff',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: s(16),
-            fontWeight: 700,
-          }}
-        >
-          {dayNumber}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: s(11), letterSpacing: s(2), color: '#000' }}>{weekday}</span>
-          <span style={{ fontSize: s(9), color: '#333' }}>{subheaderText}</span>
-        </div>
-      </div>
+      <span style={{ fontSize: s(15), fontWeight: 700 }}>{headerDate}</span>
+      <span style={{ fontSize: s(9), color: '#333', marginTop: s(2) }}>{subheaderText}</span>
 
-      <div style={{ display: 'flex', flexDirection: 'column', marginTop: s(10), flex: 1 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', marginTop: s(10), flex: 1, gap: s(6) }}>
         {events.length === 0 ? (
-          <span style={{ fontSize: s(12), color: '#000' }}>No upcoming events</span>
+          <span style={{ fontSize: s(12) }}>No upcoming events</span>
         ) : (
-          events.map((event, i) => {
-            const shaded = i % 2 === 1;
-            return (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  padding: `${s(4)}px ${s(6)}px`,
-                  marginTop: i === 0 ? 0 : s(2),
-                  backgroundColor: shaded ? '#000' : 'transparent',
-                }}
-              >
-                <span style={{ fontSize: s(11), width: s(64), color: shaded ? '#ccc' : '#333' }}>
-                  {!event.isToday ? `${event.dayLabel} ` : ''}
-                  {event.time}
-                </span>
-                <span style={{ fontSize: s(12), fontWeight: 700, color: shaded ? '#fff' : '#000' }}>{event.title}</span>
-              </div>
-            );
-          })
+          events.map((event, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                border: `${s(1)}px solid #000`,
+                borderRadius: s(6),
+                padding: `${s(5)}px ${s(8)}px`,
+              }}
+            >
+              <span style={{ fontSize: s(12) }}>
+                {event.title}
+                {!event.isToday ? ` (${event.dayLabel})` : ''}
+              </span>
+              <span style={{ fontSize: s(12), fontWeight: 700 }}>{event.time}</span>
+            </div>
+          ))
         )}
       </div>
 
@@ -230,15 +335,14 @@ function badge({ events, notification, weather, now, timeZone, fontFamily, width
         <div
           style={{
             display: 'flex',
-            flexDirection: 'column',
-            borderTop: `${s(1)}px solid #000`,
-            paddingTop: s(8),
-            marginTop: s(8),
+            border: `${s(1)}px solid #000`,
+            borderRadius: s(6),
+            padding: `${s(6)}px ${s(8)}px`,
+            marginTop: s(6),
+            fontSize: s(11),
           }}
         >
-          <span style={{ fontSize: s(11), color: '#000' }}>
-            {notification.sender}: {notification.message}
-          </span>
+          {notification.sender}: {notification.message}
         </div>
       )}
     </div>
@@ -252,8 +356,10 @@ interface ThemeDefinition {
 
 export const themes: Record<string, ThemeDefinition> = {
   classic: { fontFamily: 'monospace', render: classic },
-  paper: { fontFamily: 'serif', render: paper },
-  badge: { fontFamily: 'sans-serif', render: badge },
+  bigDate: { fontFamily: 'sans-serif', render: bigDate },
+  newspaper: { fontFamily: 'serif', render: newspaper },
+  ticket: { fontFamily: 'monospace', render: ticket },
+  chips: { fontFamily: 'sans-serif', render: chips },
 };
 
 export const themeNames = Object.keys(themes);

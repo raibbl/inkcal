@@ -3,6 +3,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <GxEPD2_BW.h>
+#include <Preferences.h>
 #include "secrets.h"
 
 // CrowPanel 4.2" E-Paper (ESP32-S3, SSD1683)
@@ -12,9 +13,20 @@
 #define EPD_BUSY 48
 #define EPD_PWR 7
 
-// Onboard MENU button - active-LOW with internal pullup (pressed = LOW)
+// Onboard buttons - all active-LOW with internal pullup (pressed = LOW).
+// MENU forces an immediate refresh; the dial's Up/Down cycle themes.
+// EXIT and the dial's Confirm aren't used yet.
 #define MENU_BUTTON 2
+#define DIAL_UP 6
+#define DIAL_DOWN 4
 const unsigned long BUTTON_DEBOUNCE_MS = 50;
+
+// Must match the theme names registered in lib/themes.tsx on the server.
+const char* THEME_NAMES[] = { "classic", "bigDate", "newspaper", "ticket", "chips" };
+const int THEME_COUNT = sizeof(THEME_NAMES) / sizeof(THEME_NAMES[0]);
+
+Preferences preferences;
+int currentThemeIndex = 0;
 
 GxEPD2_BW<GxEPD2_420_GYE042A87, GxEPD2_420_GYE042A87::HEIGHT> display(
     GxEPD2_420_GYE042A87(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
@@ -36,8 +48,30 @@ unsigned long lastFullRefresh = 0;
 unsigned long lastNotificationCheck = 0;
 String lastSignature = "";
 
-bool lastButtonReading = HIGH;
-unsigned long lastButtonChangeTime = 0;
+struct Button {
+  uint8_t pin;
+  bool lastReading = HIGH;
+  unsigned long lastChangeTime = 0;
+};
+
+Button menuButton = { MENU_BUTTON };
+Button dialUpButton = { DIAL_UP };
+Button dialDownButton = { DIAL_DOWN };
+
+bool buttonPressed(Button& button, unsigned long now) {
+  bool reading = digitalRead(button.pin);
+  bool pressed = false;
+
+  if (reading != button.lastReading) {
+    button.lastChangeTime = now;
+  }
+  if (now - button.lastChangeTime > BUTTON_DEBOUNCE_MS && reading == LOW && button.lastReading == HIGH) {
+    pressed = true;
+  }
+
+  button.lastReading = reading;
+  return pressed;
+}
 
 void connectWiFi() {
   WiFi.mode(WIFI_STA);
@@ -52,7 +86,7 @@ void connectWiFi() {
 
 bool httpGet(const String& path, WiFiClientSecure& client, HTTPClient& http) {
   client.setInsecure(); // trusted, fixed host you control - fine to skip cert pinning
-  http.begin(client, String(SERVER_URL) + path);
+  http.begin(client, String(SERVER_URL) + path + "&theme=" + THEME_NAMES[currentThemeIndex]);
   http.addHeader("Authorization", String("Bearer ") + ESP32_SECRET_KEY);
   return http.GET() == 200;
 }
@@ -151,11 +185,24 @@ void forceRefresh(unsigned long now) {
   lastNotificationCheck = now;
 }
 
+void switchTheme(int delta, unsigned long now) {
+  currentThemeIndex = (currentThemeIndex + delta + THEME_COUNT) % THEME_COUNT;
+  preferences.putUInt("theme", currentThemeIndex);
+  Serial.printf("Switched to theme: %s\n", THEME_NAMES[currentThemeIndex]);
+  showRefreshingScreen();
+  forceRefresh(now);
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(EPD_PWR, OUTPUT);
   digitalWrite(EPD_PWR, HIGH);
   pinMode(MENU_BUTTON, INPUT_PULLUP);
+  pinMode(DIAL_UP, INPUT_PULLUP);
+  pinMode(DIAL_DOWN, INPUT_PULLUP);
+
+  preferences.begin("inkcal", false);
+  currentThemeIndex = preferences.getUInt("theme", 0) % THEME_COUNT;
 
   connectWiFi();
 
@@ -168,18 +215,22 @@ void setup() {
 void loop() {
   unsigned long now = millis();
 
-  bool buttonReading = digitalRead(MENU_BUTTON);
-  if (buttonReading != lastButtonReading) {
-    lastButtonChangeTime = now;
-  }
-  if (now - lastButtonChangeTime > BUTTON_DEBOUNCE_MS && buttonReading == LOW && lastButtonReading == HIGH) {
+  if (buttonPressed(menuButton, now)) {
     Serial.println("MENU button pressed - forcing refresh");
     showRefreshingScreen();
     forceRefresh(now);
-    lastButtonReading = buttonReading;
     return;
   }
-  lastButtonReading = buttonReading;
+
+  if (buttonPressed(dialUpButton, now)) {
+    switchTheme(1, now);
+    return;
+  }
+
+  if (buttonPressed(dialDownButton, now)) {
+    switchTheme(-1, now);
+    return;
+  }
 
   if (now - lastFullRefresh >= REFRESH_INTERVAL_MS) {
     forceRefresh(now);

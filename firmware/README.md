@@ -11,6 +11,7 @@
 4. **Library Manager** -> install:
    - `GxEPD2` (e-paper driver)
    - `ArduinoJson` (parsing the `?format=json` change-check response)
+   - `Preferences` ships with the ESP32 core - no separate install needed.
 
 ## Configure
 
@@ -45,6 +46,18 @@ Both intervals are plain constants at the top of the `.ino` file - change
 them if you want a different cadence. Full e-paper refreshes visibly
 flash the panel and have a finite rated cycle count, so avoid polling
 much more often than this without a reason.
+
+## Buttons
+
+- **MENU** (GPIO2): forces an immediate refresh, showing a "Refreshing..."
+  screen first so it's obvious the press registered.
+- **Dial Up/Down** (GPIO6/GPIO4): cycles through the server's themes
+  (`classic`, `bigDate`, `newspaper`, `ticket`, `chips` - must match
+  `themeNames` in `lib/themes.tsx`), saving the choice to flash (NVS)
+  via `Preferences` so it survives a reboot or the **RESET** button.
+- **EXIT** and the dial's **Confirm** aren't wired to anything yet.
+- **RESET** is a hardware reset tied directly to the chip's EN pin - it's
+  not firmware-controlled, it just reboots the board like a power cycle.
 
 ## If the display looks inverted
 
