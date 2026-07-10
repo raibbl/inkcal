@@ -33,10 +33,26 @@ const MOCK_NOTIFICATION: PhoneNotification = {
 const MOCK_WEATHER: WeatherSummary = { tempF: 72, condition: 'Partly Cloudy' };
 
 function isAuthorized(req: NextRequest): boolean {
-  const provided = req.headers.get('authorization') ?? '';
-  const expected = `Bearer ${process.env.ESP32_SECRET_KEY ?? ''}`;
-  if (provided.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  const expectedKey = process.env.ESP32_SECRET_KEY ?? '';
+
+  // Primary path: ESP32 sends Authorization: Bearer <key>.
+  const providedHeader = req.headers.get('authorization') ?? '';
+  const expectedHeader = `Bearer ${expectedKey}`;
+  if (
+    providedHeader.length === expectedHeader.length &&
+    timingSafeEqual(Buffer.from(providedHeader), Buffer.from(expectedHeader))
+  ) {
+    return true;
+  }
+
+  // Fallback: ?key=<key> query param, so a plain link (browser, WhatsApp
+  // preview, etc.) works without being able to set a custom header.
+  const providedQueryKey = req.nextUrl.searchParams.get('key') ?? '';
+  if (providedQueryKey.length === expectedKey.length && expectedKey.length > 0) {
+    return timingSafeEqual(Buffer.from(providedQueryKey), Buffer.from(expectedKey));
+  }
+
+  return false;
 }
 
 export async function GET(req: NextRequest) {
