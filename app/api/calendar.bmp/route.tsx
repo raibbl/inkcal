@@ -2,15 +2,29 @@ import { NextRequest } from 'next/server';
 import { ImageResponse } from 'next/og';
 import sharp from 'sharp';
 import { timingSafeEqual } from 'crypto';
-import { fetchNextEvents } from '@/lib/google';
-import { getActiveNotification } from '@/lib/kv';
+import { fetchNextEvents, CalendarEventSummary } from '@/lib/google';
+import { getActiveNotification, PhoneNotification } from '@/lib/kv';
 import { toMonochromeBmp } from '@/lib/bmp';
+import { loadDevFont } from '@/lib/fonts';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs'; // sharp needs Node's runtime, not Edge
 
 const WIDTH = 400;
 const HEIGHT = 300;
+
+const MOCK_EVENTS: CalendarEventSummary[] = [
+  { time: '9:00 AM', title: 'Standup' },
+  { time: '11:30 AM', title: 'Design Review' },
+  { time: '1:00 PM', title: 'Lunch with Sam' },
+  { time: '3:30 PM', title: 'Sprint Planning' },
+];
+
+const MOCK_NOTIFICATION: PhoneNotification = {
+  sender: 'Mom',
+  message: "Don't forget to pick up milk on your way home tonight!",
+  receivedAt: new Date().toISOString(),
+};
 
 function isAuthorized(req: NextRequest): boolean {
   const provided = req.headers.get('authorization') ?? '';
@@ -24,10 +38,16 @@ export async function GET(req: NextRequest) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const [events, notification] = await Promise.all([
-    fetchNextEvents(process.env.GOOGLE_CALENDAR_ID ?? 'primary', 4),
-    Promise.resolve(getActiveNotification()),
-  ]);
+  const isMock = req.nextUrl.searchParams.get('mock') === '1';
+
+  const [events, notification] = isMock
+    ? [MOCK_EVENTS, MOCK_NOTIFICATION]
+    : await Promise.all([
+        fetchNextEvents(process.env.GOOGLE_CALENDAR_ID ?? 'primary', 4),
+        Promise.resolve(getActiveNotification()),
+      ]);
+
+  const devFont = loadDevFont();
 
   const rendered = new ImageResponse(
     (
@@ -38,7 +58,7 @@ export async function GET(req: NextRequest) {
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#fff',
-          fontFamily: 'sans-serif',
+          fontFamily: devFont ? 'Arial' : 'sans-serif',
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', padding: '16px 20px 8px' }}>
@@ -80,7 +100,7 @@ export async function GET(req: NextRequest) {
         )}
       </div>
     ),
-    { width: WIDTH, height: HEIGHT }
+    { width: WIDTH, height: HEIGHT, fonts: devFont }
   );
 
   const pngBuffer = Buffer.from(await rendered.arrayBuffer());
