@@ -15,7 +15,19 @@ export const runtime = 'nodejs'; // sharp needs Node's runtime, not Edge
 const WIDTH = 400;
 const HEIGHT = 300;
 const SUPERSAMPLE = 4; // render at 4x, then downscale before thresholding for cleaner edges
-const scale = (n: number) => n * SUPERSAMPLE;
+
+// Scales content (fonts/spacing) within the canvas - NOT the canvas
+// itself, which must always be exactly SUPERSAMPLE*WIDTH/HEIGHT so the
+// final sharp resize still lands on the fixed 400x300 physical output.
+// Scaling both together and resizing to a fixed size would cancel out,
+// with zero visible difference.
+const SIZE_PRESETS: Record<string, number> = { small: 0.9, medium: 1, large: 1.08 };
+const DEFAULT_SIZE = 'medium';
+const sizeNames = Object.keys(SIZE_PRESETS);
+
+// The canvas is a fixed 300px tall - "medium" already has no headroom
+// for 4 events, so "large" shows fewer of them instead of clipping.
+const MAX_EVENTS_FOR_SIZE: Record<string, number> = { small: 4, medium: 4, large: 2 };
 
 const MOCK_EVENTS: CalendarEventSummary[] = [
   { time: '9:00 AM', title: 'Standup', isToday: true, dayLabel: '' },
@@ -83,16 +95,43 @@ export async function GET(req: NextRequest) {
   const themeName = themeNames.includes(requestedTheme) ? requestedTheme : DEFAULT_THEME;
   const theme = themes[themeName];
 
+  const requestedSize = req.nextUrl.searchParams.get('size') ?? DEFAULT_SIZE;
+  const sizeName = sizeNames.includes(requestedSize) ? requestedSize : DEFAULT_SIZE;
+  const sizeMultiplier = SIZE_PRESETS[sizeName];
+
   if (req.nextUrl.searchParams.get('format') === 'json') {
-    return NextResponse.json({ theme: themeName, availableThemes: themeNames, events, notification, weather });
+    return NextResponse.json({
+      theme: themeName,
+      availableThemes: themeNames,
+      size: sizeName,
+      availableSizes: sizeNames,
+      events,
+      notification,
+      weather,
+    });
   }
 
   const devFont = loadDevFont(theme.fontFamily);
   const fontFamily = fontFamilyCss(theme.fontFamily, devFont);
 
+  const canvasWidth = WIDTH * SUPERSAMPLE;
+  const canvasHeight = HEIGHT * SUPERSAMPLE;
+  const contentScale = (n: number) => n * SUPERSAMPLE * sizeMultiplier;
+  const visibleEvents = events.slice(0, MAX_EVENTS_FOR_SIZE[sizeName]);
+
   const rendered = new ImageResponse(
-    theme.render({ events, notification, weather, now, timeZone, fontFamily, width: WIDTH, height: HEIGHT, scale }),
-    { width: scale(WIDTH), height: scale(HEIGHT), fonts: devFont }
+    theme.render({
+      events: visibleEvents,
+      notification,
+      weather,
+      now,
+      timeZone,
+      fontFamily,
+      canvasWidth,
+      canvasHeight,
+      scale: contentScale,
+    }),
+    { width: canvasWidth, height: canvasHeight, fonts: devFont }
   );
 
   const pngBuffer = Buffer.from(await rendered.arrayBuffer());

@@ -2,14 +2,18 @@
 
 import { useEffect, useState } from 'react';
 
-// Kept in sync with the theme registry in lib/themes.tsx - not imported
-// directly since that file pulls in server-only modules (fs, googleapis)
-// through its type imports, which would leak into this client bundle.
+// Kept in sync with the theme/size registries in the calendar.bmp route -
+// not imported directly since that file pulls in server-only modules
+// (fs, googleapis) through its type imports, which would leak into this
+// client bundle.
 const THEME_NAMES = ['classic', 'bigDate', 'newspaper', 'ticket', 'chips'];
+const SIZE_NAMES = ['small', 'medium', 'large'];
 
 export default function Home() {
   const [cacheBust, setCacheBust] = useState(0);
   const [theme, setTheme] = useState(THEME_NAMES[0]);
+  const [sizeIndex, setSizeIndex] = useState(SIZE_NAMES.indexOf('medium'));
+  const size = SIZE_NAMES[sizeIndex];
 
   useEffect(() => {
     const interval = setInterval(() => setCacheBust((n) => n + 1), 30000);
@@ -45,6 +49,13 @@ export default function Home() {
             {name}
           </button>
         ))}
+        <button
+          onClick={() => setSizeIndex((i) => (i + 1) % SIZE_NAMES.length)}
+          className="rounded-full px-3 py-1 text-sm"
+          style={{ backgroundColor: '#6b6355', color: '#fff' }}
+        >
+          size: {size}
+        </button>
       </div>
 
       <div
@@ -53,7 +64,7 @@ export default function Home() {
       >
         <div className="overflow-hidden rounded-[10px] bg-white">
           <img
-            src={`/api/calendar.bmp?mock=1&theme=${theme}&cb=${cacheBust}`}
+            src={`/api/calendar.bmp?mock=1&theme=${theme}&size=${size}&cb=${cacheBust}`}
             width={400}
             height={300}
             alt="Live preview of the e-paper calendar display"
