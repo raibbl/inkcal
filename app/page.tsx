@@ -2,8 +2,14 @@
 
 import { useEffect, useState } from 'react';
 
+// Kept in sync with the theme registry in lib/themes.tsx - not imported
+// directly since that file pulls in server-only modules (fs, googleapis)
+// through its type imports, which would leak into this client bundle.
+const THEME_NAMES = ['classic', 'bigDate', 'newspaper', 'ticket', 'chips'];
+
 export default function Home() {
   const [cacheBust, setCacheBust] = useState(0);
+  const [theme, setTheme] = useState(THEME_NAMES[0]);
 
   useEffect(() => {
     const interval = setInterval(() => setCacheBust((n) => n + 1), 30000);
@@ -24,13 +30,30 @@ export default function Home() {
         </p>
       </div>
 
+      <div className="flex flex-wrap justify-center gap-2">
+        {THEME_NAMES.map((name) => (
+          <button
+            key={name}
+            onClick={() => setTheme(name)}
+            className="rounded-full px-3 py-1 text-sm"
+            style={
+              name === theme
+                ? { backgroundColor: '#232019', color: '#fff' }
+                : { backgroundColor: '#ddd5c2', color: '#2b271f' }
+            }
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+
       <div
         className="rounded-[28px] p-5 shadow-xl"
         style={{ backgroundColor: '#232019' }}
       >
         <div className="overflow-hidden rounded-[10px] bg-white">
           <img
-            src={`/api/calendar.bmp?mock=1&cb=${cacheBust}`}
+            src={`/api/calendar.bmp?mock=1&theme=${theme}&cb=${cacheBust}`}
             width={400}
             height={300}
             alt="Live preview of the e-paper calendar display"

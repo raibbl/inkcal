@@ -50,7 +50,8 @@ String lastSignature = "";
 
 struct Button {
   uint8_t pin;
-  bool lastReading = HIGH;
+  bool lastFlickerState = HIGH;  // most recent raw reading, may still be bouncing
+  bool lastSteadyState = HIGH;   // reading once it's been stable past the debounce window
   unsigned long lastChangeTime = 0;
 };
 
@@ -62,14 +63,18 @@ bool buttonPressed(Button& button, unsigned long now) {
   bool reading = digitalRead(button.pin);
   bool pressed = false;
 
-  if (reading != button.lastReading) {
+  if (reading != button.lastFlickerState) {
     button.lastChangeTime = now;
-  }
-  if (now - button.lastChangeTime > BUTTON_DEBOUNCE_MS && reading == LOW && button.lastReading == HIGH) {
-    pressed = true;
+    button.lastFlickerState = reading;
   }
 
-  button.lastReading = reading;
+  if (now - button.lastChangeTime > BUTTON_DEBOUNCE_MS) {
+    if (button.lastSteadyState == HIGH && reading == LOW) {
+      pressed = true;
+    }
+    button.lastSteadyState = reading;
+  }
+
   return pressed;
 }
 
@@ -158,9 +163,9 @@ void drawBitmapToDisplay() {
   display.firstPage();
   do {
     display.fillScreen(GxEPD_WHITE);
-    display.drawBitmap(0, 0, bitmap, DISPLAY_WIDTH, DISPLAY_HEIGHT, GxEPD_BLACK);
-    // If black/white come out swapped on your panel, use this instead:
-    // display.drawInvertedBitmap(0, 0, bitmap, DISPLAY_WIDTH, DISPLAY_HEIGHT, GxEPD_BLACK);
+    // This panel needs the inverted variant - confirmed on real hardware
+    // (the plain drawBitmap() showed a black background/white text swap).
+    display.drawInvertedBitmap(0, 0, bitmap, DISPLAY_WIDTH, DISPLAY_HEIGHT, GxEPD_BLACK);
   } while (display.nextPage());
 }
 
