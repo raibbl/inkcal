@@ -1,4 +1,5 @@
 import { readFileSync } from 'fs';
+import path from 'path';
 
 export interface OgFont {
   name: string;
@@ -9,30 +10,31 @@ export interface OgFont {
 
 export type FontFamily = 'monospace' | 'serif' | 'sans-serif';
 
-const DEV_FONT_FILES: Record<FontFamily, { path: string; name: string }> = {
-  monospace: { path: 'C:\\Windows\\Fonts\\courbd.ttf', name: 'Courier New' },
-  serif: { path: 'C:\\Windows\\Fonts\\timesbd.ttf', name: 'Times New Roman' },
-  'sans-serif': { path: 'C:\\Windows\\Fonts\\arialbd.ttf', name: 'Arial' },
+// Real font files bundled via npm (SIL Open Font License), not OS system
+// fonts - this way the exact same font renders identically in local dev
+// and on Vercel/Linux production, instead of silently falling back to
+// whatever generic font happens to be installed on each platform.
+const BUNDLED_FONTS: Record<FontFamily, { file: string; name: string }> = {
+  monospace: {
+    file: 'node_modules/@fontsource/roboto-mono/files/roboto-mono-latin-700-normal.woff',
+    name: 'Roboto Mono',
+  },
+  serif: {
+    file: 'node_modules/@fontsource/merriweather/files/merriweather-latin-700-normal.woff',
+    name: 'Merriweather',
+  },
+  'sans-serif': {
+    file: 'node_modules/@fontsource/inter/files/inter-latin-700-normal.woff',
+    name: 'Inter',
+  },
 };
 
-/**
- * next/og's bundled default font resolves its path via `pathToFileURL`,
- * which is broken on `next dev` on Windows (ERR_INVALID_URL). Passing an
- * explicit font sidesteps that code path entirely. This falls back to a
- * local Windows system font matching the requested family for dev; on
- * Vercel/Linux the file won't exist, so it returns undefined and
- * next/og's default (which works fine there) is used instead.
- */
-export function loadDevFont(family: FontFamily): OgFont[] | undefined {
-  const font = DEV_FONT_FILES[family];
-  try {
-    const data = readFileSync(font.path);
-    return [{ name: font.name, data, weight: 700, style: 'normal' }];
-  } catch {
-    return undefined;
-  }
+export function loadDevFont(family: FontFamily): OgFont[] {
+  const font = BUNDLED_FONTS[family];
+  const data = readFileSync(path.join(process.cwd(), font.file));
+  return [{ name: font.name, data, weight: 700, style: 'normal' }];
 }
 
-export function fontFamilyCss(family: FontFamily, devFont: OgFont[] | undefined): string {
-  return devFont ? devFont[0].name : family;
+export function fontFamilyCss(family: FontFamily, devFont: OgFont[]): string {
+  return devFont[0].name;
 }
