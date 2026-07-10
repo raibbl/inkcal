@@ -14,7 +14,7 @@ export const runtime = 'nodejs'; // sharp needs Node's runtime, not Edge
 
 const WIDTH = 400;
 const HEIGHT = 300;
-const SUPERSAMPLE = 2; // render at 2x, then downscale before thresholding for cleaner edges
+const SUPERSAMPLE = 4; // render at 4x, then downscale before thresholding for cleaner edges
 const scale = (n: number) => n * SUPERSAMPLE;
 
 const MOCK_EVENTS: CalendarEventSummary[] = [
