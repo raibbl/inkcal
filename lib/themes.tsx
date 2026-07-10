@@ -10,8 +10,8 @@ export interface ThemeProps {
   now: Date;
   timeZone: string;
   fontFamily: string;
-  width: number;
-  height: number;
+  canvasWidth: number;
+  canvasHeight: number;
   scale: (n: number) => number;
 }
 
@@ -23,18 +23,18 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-function classic({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
+function classic({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s }: ThemeProps) {
   const headerDate = now
     .toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'short', day: 'numeric' })
     .toUpperCase();
   const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
-  const subheaderText = weather ? `updated ${headerTime} · ${weather.tempF}°F ${weather.condition}` : `updated ${headerTime}`;
+  const subheaderText = weather ? `U@ ${headerTime} · ${weather.tempF}°F ${weather.condition}` : `U@ ${headerTime}`;
 
   return (
     <div
       style={{
-        width: s(width),
-        height: s(height),
+        width: canvasWidth,
+        height: canvasHeight,
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#fff',
@@ -42,8 +42,8 @@ function classic({ events, notification, weather, now, timeZone, fontFamily, wid
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', padding: `${s(12)}px ${s(16)}px ${s(6)}px` }}>
-        <span style={{ fontSize: s(29), fontWeight: 700, letterSpacing: s(1), color: '#000' }}>{headerDate}</span>
-        <span style={{ fontSize: s(17), fontWeight: 700, color: '#000', marginTop: s(2) }}>{subheaderText}</span>
+        <span style={{ fontSize: s(30), fontWeight: 700, letterSpacing: s(1), color: '#000' }}>{headerDate}</span>
+        <span style={{ fontSize: s(18), fontWeight: 400, color: '#000', marginTop: s(2) }}>{subheaderText}</span>
         <div style={{ height: s(3), backgroundColor: '#000', marginTop: s(6), width: '100%' }} />
       </div>
 
@@ -71,8 +71,8 @@ function classic({ events, notification, weather, now, timeZone, fontFamily, wid
                   {event.dayLabel}
                 </div>
               )}
-              <span style={{ fontSize: s(21), fontWeight: 700, color: '#000' }}>
-                • {event.time} - {truncate(event.title, 14)}
+              <span style={{ fontSize: s(22), fontWeight: 400, color: '#000' }}>
+                • {event.time} - {truncate(event.title, 10)}
               </span>
             </div>
           ))
@@ -89,7 +89,7 @@ function classic({ events, notification, weather, now, timeZone, fontFamily, wid
   );
 }
 
-function bigDate({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
+function bigDate({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s }: ThemeProps) {
   const dayNumber = now.toLocaleDateString('en-US', { timeZone, day: 'numeric' });
   const weekday = now.toLocaleDateString('en-US', { timeZone, weekday: 'long' });
   const monthYear = now.toLocaleDateString('en-US', { timeZone, month: 'long', year: 'numeric' });
@@ -98,8 +98,8 @@ function bigDate({ events, notification, weather, now, timeZone, fontFamily, wid
   return (
     <div
       style={{
-        width: s(width),
-        height: s(height),
+        width: canvasWidth,
+        height: canvasHeight,
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#fff',
@@ -120,7 +120,7 @@ function bigDate({ events, notification, weather, now, timeZone, fontFamily, wid
           <span style={{ fontSize: s(18), color: '#fff' }}>{weekday}</span>
           <span style={{ fontSize: s(16), color: '#fff' }}>{monthYear}</span>
         </div>
-        <span style={{ fontSize: s(14), color: '#fff', marginLeft: 'auto' }}>updated {headerTime}</span>
+        <span style={{ fontSize: s(14), color: '#fff', marginLeft: 'auto' }}>U@ {headerTime}</span>
       </div>
       {weather && (
         <div style={{ display: 'flex', fontSize: s(17), color: '#000', padding: `${s(4)}px ${s(10)}px 0` }}>
@@ -146,7 +146,7 @@ function bigDate({ events, notification, weather, now, timeZone, fontFamily, wid
                 {!event.isToday ? `${event.dayLabel} ` : ''}
                 {event.time}
               </span>
-              <span style={{ fontSize: s(17), fontWeight: 700, color: '#000' }}>{truncate(event.title, 22)}</span>
+              <span style={{ fontSize: s(18), fontWeight: 400, color: '#000' }}>{truncate(event.title, 22)}</span>
             </div>
           ))
         )}
@@ -170,18 +170,18 @@ function bigDate({ events, notification, weather, now, timeZone, fontFamily, wid
   );
 }
 
-function newspaper({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
+function newspaper({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s }: ThemeProps) {
   const headerDate = now.toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'short', day: 'numeric' });
   const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
   const subheaderText = weather
-    ? `${headerDate} - updated ${headerTime} - ${weather.tempF}°F ${weather.condition}`
-    : `${headerDate} - updated ${headerTime}`;
+    ? `${headerDate} - U@ ${headerTime} - ${weather.tempF}°F ${weather.condition}`
+    : `${headerDate} - U@ ${headerTime}`;
 
   return (
     <div
       style={{
-        width: s(width),
-        height: s(height),
+        width: canvasWidth,
+        height: canvasHeight,
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#fff',
@@ -230,15 +230,15 @@ function newspaper({ events, notification, weather, now, timeZone, fontFamily, w
   );
 }
 
-function ticket({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
+function ticket({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s }: ThemeProps) {
   const headerDate = now.toLocaleDateString('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
   const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
     <div
       style={{
-        width: s(width),
-        height: s(height),
+        width: canvasWidth,
+        height: canvasHeight,
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#fff',
@@ -250,10 +250,10 @@ function ticket({ events, notification, weather, now, timeZone, fontFamily, widt
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
         <span style={{ fontSize: s(21), fontWeight: 700 }}>{headerDate}</span>
         <span style={{ fontSize: s(17), color: '#000' }}>
-          {weather ? `${weather.tempF}°F ${weather.condition}` : `updated ${headerTime}`}
+          {weather ? `${weather.tempF}°F ${weather.condition}` : `U@ ${headerTime}`}
         </span>
       </div>
-      <span style={{ fontSize: s(15), color: '#000', marginTop: s(1) }}>updated {headerTime}</span>
+      <span style={{ fontSize: s(15), color: '#000', marginTop: s(1) }}>U@ {headerTime}</span>
 
       <div style={{ display: 'flex', flexDirection: 'column', marginTop: s(7), flex: 1 }}>
         {events.length === 0 ? (
@@ -290,16 +290,16 @@ function ticket({ events, notification, weather, now, timeZone, fontFamily, widt
   );
 }
 
-function chips({ events, notification, weather, now, timeZone, fontFamily, width, height, scale: s }: ThemeProps) {
+function chips({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s }: ThemeProps) {
   const headerDate = now.toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'short', day: 'numeric' });
   const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
-  const subheaderText = weather ? `updated ${headerTime} · ${weather.tempF}°F ${weather.condition}` : `updated ${headerTime}`;
+  const subheaderText = weather ? `U@ ${headerTime} · ${weather.tempF}°F ${weather.condition}` : `U@ ${headerTime}`;
 
   return (
     <div
       style={{
-        width: s(width),
-        height: s(height),
+        width: canvasWidth,
+        height: canvasHeight,
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#fff',
