@@ -64,9 +64,9 @@ export async function GET(req: NextRequest) {
     .toUpperCase();
   const headerTime = now.toLocaleTimeString('en-US', {
     timeZone,
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
-    hour12: false,
+    hour12: true,
   });
   const subheaderText = weather
     ? `${headerTime} | ${weather.tempF}°F ${weather.condition}`
