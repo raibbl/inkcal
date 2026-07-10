@@ -5,8 +5,9 @@ import { timingSafeEqual } from 'crypto';
 import { fetchNextEvents, CalendarEventSummary } from '@/lib/google';
 import { getActiveNotification, PhoneNotification } from '@/lib/kv';
 import { toMonochromeBmp, toPackedMonochrome } from '@/lib/bmp';
-import { loadDevFont } from '@/lib/fonts';
+import { loadDevFont, fontFamilyCss } from '@/lib/fonts';
 import { fetchWeather, WeatherSummary } from '@/lib/weather';
+import { themes, themeNames, DEFAULT_THEME } from '@/lib/themes';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs'; // sharp needs Node's runtime, not Edge
@@ -14,7 +15,7 @@ export const runtime = 'nodejs'; // sharp needs Node's runtime, not Edge
 const WIDTH = 400;
 const HEIGHT = 300;
 const SUPERSAMPLE = 2; // render at 2x, then downscale before thresholding for cleaner edges
-const s = (n: number) => n * SUPERSAMPLE;
+const scale = (n: number) => n * SUPERSAMPLE;
 
 const MOCK_EVENTS: CalendarEventSummary[] = [
   { time: '9:00 AM', title: 'Standup', isToday: true, dayLabel: '' },
@@ -39,11 +40,15 @@ function isAuthorized(req: NextRequest): boolean {
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  const isMock = req.nextUrl.searchParams.get('mock') === '1';
+
+  // Mock mode only ever returns hardcoded placeholder data, never real
+  // calendar/notification info, so it's safe to expose without auth -
+  // that's what lets a plain <img> tag on the public site preview it
+  // (browsers can't attach an Authorization header to an <img src>).
+  if (!isMock && !isAuthorized(req)) {
     return new Response('Unauthorized', { status: 401 });
   }
-
-  const isMock = req.nextUrl.searchParams.get('mock') === '1';
 
   const [events, notification, weather] = isMock
     ? [MOCK_EVENTS, MOCK_NOTIFICATION, MOCK_WEATHER]
@@ -55,123 +60,23 @@ export async function GET(req: NextRequest) {
           : Promise.resolve(null),
       ]);
 
-  const devFont = loadDevFont();
-
   const timeZone = process.env.DISPLAY_TIMEZONE || 'UTC';
   const now = new Date();
-  const headerDate = now
-    .toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'short', day: 'numeric' })
-    .toUpperCase();
-  const headerTime = now.toLocaleTimeString('en-US', {
-    timeZone,
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-  const subheaderText = weather
-    ? `${headerTime} | ${weather.tempF}°F ${weather.condition}`
-    : headerTime;
+
+  const requestedTheme = req.nextUrl.searchParams.get('theme') ?? DEFAULT_THEME;
+  const themeName = themeNames.includes(requestedTheme) ? requestedTheme : DEFAULT_THEME;
+  const theme = themes[themeName];
 
   if (req.nextUrl.searchParams.get('format') === 'json') {
-    return NextResponse.json({ headerDate, headerTime, subheaderText, events, notification, weather });
+    return NextResponse.json({ theme: themeName, availableThemes: themeNames, events, notification, weather });
   }
 
+  const devFont = loadDevFont(theme.fontFamily);
+  const fontFamily = fontFamilyCss(theme.fontFamily, devFont);
+
   const rendered = new ImageResponse(
-    (
-      <div
-        style={{
-          width: s(WIDTH),
-          height: s(HEIGHT),
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: '#fff',
-          fontFamily: devFont ? 'Courier New' : 'monospace',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            padding: `${s(14)}px ${s(20)}px ${s(8)}px`,
-          }}
-        >
-          <span style={{ fontSize: s(22), fontWeight: 700, letterSpacing: s(1), color: '#000' }}>
-            {headerDate}
-          </span>
-          <span style={{ fontSize: s(13), fontWeight: 700, color: '#000', marginTop: s(2) }}>
-            {subheaderText}
-          </span>
-          <div style={{ height: s(3), backgroundColor: '#000', marginTop: s(8), width: '100%' }} />
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            flex: 1,
-            padding: `${s(6)}px ${s(20)}px`,
-          }}
-        >
-          {events.length === 0 ? (
-            <span style={{ fontSize: s(16), color: '#000', marginTop: s(12) }}>
-              No upcoming events
-            </span>
-          ) : (
-            events.map((event, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginTop: i === 0 ? s(4) : s(12),
-                }}
-              >
-                {!event.isToday && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      backgroundColor: '#000',
-                      color: '#fff',
-                      fontSize: s(11),
-                      fontWeight: 700,
-                      padding: `${s(2)}px ${s(6)}px`,
-                      marginRight: s(8),
-                    }}
-                  >
-                    {event.dayLabel}
-                  </div>
-                )}
-                <span style={{ fontSize: s(16), fontWeight: 700, color: '#000' }}>
-                  • {event.time} - {event.title}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-
-        {notification && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              backgroundColor: '#000',
-              padding: `${s(8)}px ${s(20)}px`,
-            }}
-          >
-            <span style={{ fontSize: s(13), fontWeight: 700, color: '#fff' }}>
-              FROM: {notification.sender.toUpperCase()}
-            </span>
-            <span style={{ fontSize: s(13), color: '#fff', marginTop: s(4) }}>
-              {notification.message.length > 60
-                ? `${notification.message.slice(0, 60)}...`
-                : notification.message}
-            </span>
-          </div>
-        )}
-      </div>
-    ),
-    { width: s(WIDTH), height: s(HEIGHT), fonts: devFont }
+    theme.render({ events, notification, weather, now, timeZone, fontFamily, width: WIDTH, height: HEIGHT, scale }),
+    { width: scale(WIDTH), height: scale(HEIGHT), fonts: devFont }
   );
 
   const pngBuffer = Buffer.from(await rendered.arrayBuffer());
