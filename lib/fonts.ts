@@ -17,8 +17,8 @@ export interface OgFont {
  */
 export function loadDevFont(): OgFont[] | undefined {
   try {
-    const data = readFileSync('C:\\Windows\\Fonts\\arialbd.ttf');
-    return [{ name: 'Arial', data, weight: 700, style: 'normal' }];
+    const data = readFileSync('C:\\Windows\\Fonts\\courbd.ttf');
+    return [{ name: 'Courier New', data, weight: 700, style: 'normal' }];
   } catch {
     return undefined;
   }

@@ -3,6 +3,8 @@ import { google, calendar_v3 } from 'googleapis';
 export interface CalendarEventSummary {
   time: string;
   title: string;
+  isToday: boolean;
+  dayLabel: string;
 }
 
 let cachedClient: calendar_v3.Calendar | null = null;
@@ -38,12 +40,21 @@ export async function fetchNextEvents(
   });
 
   const events = res.data.items ?? [];
+  const today = new Date();
 
   return events.map((event) => {
     const start = event.start?.dateTime ?? event.start?.date;
-    const time = start
-      ? new Date(start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    const startDate = start ? new Date(start) : null;
+
+    const time = startDate
+      ? startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
       : 'All day';
-    return { time, title: event.summary ?? '(No title)' };
+
+    const isToday = startDate ? startDate.toDateString() === today.toDateString() : false;
+    const dayLabel = startDate
+      ? startDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+      : '';
+
+    return { time, title: event.summary ?? '(No title)', isToday, dayLabel };
   });
 }
