@@ -14,19 +14,23 @@
 #define EPD_PWR 7
 
 // Onboard buttons - all active-LOW with internal pullup (pressed = LOW).
-// MENU forces an immediate refresh; the dial's Up/Down cycle themes.
-// EXIT and the dial's Confirm aren't used yet.
+// MENU forces an immediate refresh; the dial's Up/Down cycle themes;
+// EXIT cycles the size preset. The dial's Confirm isn't used yet.
 #define MENU_BUTTON 2
+#define EXIT_BUTTON 1
 #define DIAL_UP 6
 #define DIAL_DOWN 4
 const unsigned long BUTTON_DEBOUNCE_MS = 50;
 
-// Must match the theme names registered in lib/themes.tsx on the server.
+// Must match the theme/size registries in the calendar.bmp route on the server.
 const char* THEME_NAMES[] = { "classic", "bigDate", "newspaper", "ticket", "chips" };
 const int THEME_COUNT = sizeof(THEME_NAMES) / sizeof(THEME_NAMES[0]);
+const char* SIZE_NAMES[] = { "small", "medium", "large" };
+const int SIZE_COUNT = sizeof(SIZE_NAMES) / sizeof(SIZE_NAMES[0]);
 
 Preferences preferences;
 int currentThemeIndex = 0;
+int currentSizeIndex = 1; // "medium"
 
 GxEPD2_BW<GxEPD2_420_GYE042A87, GxEPD2_420_GYE042A87::HEIGHT> display(
     GxEPD2_420_GYE042A87(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
@@ -56,6 +60,7 @@ struct Button {
 };
 
 Button menuButton = { MENU_BUTTON };
+Button exitButton = { EXIT_BUTTON };
 Button dialUpButton = { DIAL_UP };
 Button dialDownButton = { DIAL_DOWN };
 
@@ -91,7 +96,7 @@ void connectWiFi() {
 
 bool httpGet(const String& path, WiFiClientSecure& client, HTTPClient& http) {
   client.setInsecure(); // trusted, fixed host you control - fine to skip cert pinning
-  http.begin(client, String(SERVER_URL) + path + "&theme=" + THEME_NAMES[currentThemeIndex]);
+  http.begin(client, String(SERVER_URL) + path + "&theme=" + THEME_NAMES[currentThemeIndex] + "&size=" + SIZE_NAMES[currentSizeIndex]);
   http.addHeader("Authorization", String("Bearer ") + ESP32_SECRET_KEY);
   return http.GET() == 200;
 }
@@ -198,16 +203,26 @@ void switchTheme(int delta, unsigned long now) {
   forceRefresh(now);
 }
 
+void cycleSize(unsigned long now) {
+  currentSizeIndex = (currentSizeIndex + 1) % SIZE_COUNT;
+  preferences.putUInt("size", currentSizeIndex);
+  Serial.printf("Switched to size: %s\n", SIZE_NAMES[currentSizeIndex]);
+  showRefreshingScreen();
+  forceRefresh(now);
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(EPD_PWR, OUTPUT);
   digitalWrite(EPD_PWR, HIGH);
   pinMode(MENU_BUTTON, INPUT_PULLUP);
+  pinMode(EXIT_BUTTON, INPUT_PULLUP);
   pinMode(DIAL_UP, INPUT_PULLUP);
   pinMode(DIAL_DOWN, INPUT_PULLUP);
 
   preferences.begin("inkcal", false);
   currentThemeIndex = preferences.getUInt("theme", 0) % THEME_COUNT;
+  currentSizeIndex = preferences.getUInt("size", 1) % SIZE_COUNT;
 
   connectWiFi();
 
@@ -224,6 +239,11 @@ void loop() {
     Serial.println("MENU button pressed - forcing refresh");
     showRefreshingScreen();
     forceRefresh(now);
+    return;
+  }
+
+  if (buttonPressed(exitButton, now)) {
+    cycleSize(now);
     return;
   }
 
