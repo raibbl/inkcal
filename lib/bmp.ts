@@ -57,3 +57,32 @@ export function toMonochromeBmp(pixels: Buffer, width: number, height: number): 
 
   return buffer;
 }
+
+/**
+ * Packs the same thresholded grayscale buffer into a raw 1-bpp bitmap
+ * with no file header and no row padding - top-to-bottom, exactly
+ * width/8 bytes per row. This is the format GxEPD2's drawBitmap() on
+ * the ESP32 expects; BMP's bottom-up rows and 4-byte row padding would
+ * just be extra parsing work for a microcontroller that only ever
+ * needs the raw pixels, never to open the file elsewhere.
+ */
+export function toPackedMonochrome(pixels: Buffer, width: number, height: number): Buffer {
+  const bytesPerRow = Math.ceil(width / 8);
+  const buffer = Buffer.alloc(bytesPerRow * height);
+
+  for (let y = 0; y < height; y++) {
+    for (let byteIndex = 0; byteIndex < bytesPerRow; byteIndex++) {
+      let byte = 0;
+      for (let bit = 0; bit < 8; bit++) {
+        const x = byteIndex * 8 + bit;
+        if (x >= width) break;
+        if (pixels[y * width + x] >= 128) {
+          byte |= 1 << (7 - bit);
+        }
+      }
+      buffer[y * bytesPerRow + byteIndex] = byte;
+    }
+  }
+
+  return buffer;
+}

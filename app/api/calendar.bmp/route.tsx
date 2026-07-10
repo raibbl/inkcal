@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import { timingSafeEqual } from 'crypto';
 import { fetchNextEvents, CalendarEventSummary } from '@/lib/google';
 import { getActiveNotification, PhoneNotification } from '@/lib/kv';
-import { toMonochromeBmp } from '@/lib/bmp';
+import { toMonochromeBmp, toPackedMonochrome } from '@/lib/bmp';
 import { loadDevFont } from '@/lib/fonts';
 import { fetchWeather, WeatherSummary } from '@/lib/weather';
 
@@ -182,6 +182,18 @@ export async function GET(req: NextRequest) {
     .threshold(128)
     .raw()
     .toBuffer({ resolveWithObject: true });
+
+  if (req.nextUrl.searchParams.get('format') === 'raw') {
+    const packedBuffer = toPackedMonochrome(data, info.width, info.height);
+    return new Response(new Uint8Array(packedBuffer), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': String(packedBuffer.length),
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
 
   const bmpBuffer = toMonochromeBmp(data, info.width, info.height);
 
