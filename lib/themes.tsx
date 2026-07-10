@@ -112,12 +112,12 @@ function bigDate({ events, notification, weather, now, timeZone, fontFamily, wid
         <span style={{ fontSize: s(30), fontWeight: 700, color: '#fff', lineHeight: 1 }}>{dayNumber}</span>
         <div style={{ display: 'flex', flexDirection: 'column', marginLeft: s(8) }}>
           <span style={{ fontSize: s(13), color: '#fff' }}>{weekday}</span>
-          <span style={{ fontSize: s(11), color: '#fff' }}>{monthYear}</span>
+          <span style={{ fontSize: s(13), color: '#fff' }}>{monthYear}</span>
         </div>
-        <span style={{ fontSize: s(10), color: '#fff', marginLeft: 'auto' }}>updated {headerTime}</span>
+        <span style={{ fontSize: s(13), color: '#fff', marginLeft: 'auto' }}>updated {headerTime}</span>
       </div>
       {weather && (
-        <div style={{ display: 'flex', fontSize: s(11), color: '#000', padding: `${s(4)}px ${s(10)}px 0` }}>
+        <div style={{ display: 'flex', fontSize: s(13), color: '#000', padding: `${s(4)}px ${s(10)}px 0` }}>
           {weather.tempF}°F {weather.condition}
         </div>
       )}
@@ -185,7 +185,7 @@ function newspaper({ events, notification, weather, now, timeZone, fontFamily, w
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <span style={{ fontSize: s(19), fontWeight: 700 }}>The Daily Agenda</span>
-        <span style={{ fontSize: s(9), marginTop: s(2) }}>{subheaderText}</span>
+        <span style={{ fontSize: s(12), marginTop: s(2) }}>{subheaderText}</span>
         <div style={{ height: s(2), backgroundColor: '#000', marginTop: s(5), width: '100%' }} />
         <div style={{ height: s(1), backgroundColor: '#000', marginTop: s(2), width: '100%' }} />
       </div>
@@ -243,11 +243,11 @@ function ticket({ events, notification, weather, now, timeZone, fontFamily, widt
     >
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
         <span style={{ fontSize: s(15), fontWeight: 700 }}>{headerDate}</span>
-        <span style={{ fontSize: s(11), color: '#000' }}>
+        <span style={{ fontSize: s(13), color: '#000' }}>
           {weather ? `${weather.tempF}°F ${weather.condition}` : `updated ${headerTime}`}
         </span>
       </div>
-      <span style={{ fontSize: s(10), color: '#000', marginTop: s(1) }}>updated {headerTime}</span>
+      <span style={{ fontSize: s(13), color: '#000', marginTop: s(1) }}>updated {headerTime}</span>
 
       <div style={{ display: 'flex', flexDirection: 'column', marginTop: s(8), flex: 1 }}>
         {events.length === 0 ? (
@@ -302,7 +302,7 @@ function chips({ events, notification, weather, now, timeZone, fontFamily, width
       }}
     >
       <span style={{ fontSize: s(15), fontWeight: 700 }}>{headerDate}</span>
-      <span style={{ fontSize: s(11), color: '#000', marginTop: s(2) }}>{subheaderText}</span>
+      <span style={{ fontSize: s(13), color: '#000', marginTop: s(2) }}>{subheaderText}</span>
 
       <div style={{ display: 'flex', flexDirection: 'column', marginTop: s(10), flex: 1, gap: s(6) }}>
         {events.length === 0 ? (
