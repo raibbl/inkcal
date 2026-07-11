@@ -14,12 +14,15 @@
 #define EPD_PWR 7
 
 // Onboard buttons - all active-LOW with internal pullup (pressed = LOW).
-// MENU forces an immediate refresh; the dial's Up/Down cycle themes;
-// EXIT cycles the size preset. The dial's Confirm isn't used yet.
+// MENU forces an immediate refresh; EXIT cycles the size preset; the
+// dial's Up/Down page through events (used far more often than themes);
+// the dial's Confirm cycles themes, one direction only - same pattern
+// EXIT already uses for size, since a single button has no "back."
 #define MENU_BUTTON 2
 #define EXIT_BUTTON 1
 #define DIAL_UP 6
 #define DIAL_DOWN 4
+#define DIAL_CONFIRM 5
 const unsigned long BUTTON_DEBOUNCE_MS = 50;
 
 // Must match the theme/size registries in the calendar.bmp route on the server.
@@ -31,6 +34,12 @@ const int SIZE_COUNT = sizeof(SIZE_NAMES) / sizeof(SIZE_NAMES[0]);
 Preferences preferences;
 int currentThemeIndex = 0;
 int currentSizeIndex = 1; // "medium"
+
+// Not persisted - the periodic full refresh resets it to 0 anyway (see
+// loop()), and the server wraps whatever value is sent into whatever
+// page range currently exists, so there's nothing worth saving across
+// a reboot.
+int currentPageIndex = 0;
 
 GxEPD2_BW<GxEPD2_420_GYE042A87, GxEPD2_420_GYE042A87::HEIGHT> display(
     GxEPD2_420_GYE042A87(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
@@ -63,6 +72,7 @@ Button menuButton = { MENU_BUTTON };
 Button exitButton = { EXIT_BUTTON };
 Button dialUpButton = { DIAL_UP };
 Button dialDownButton = { DIAL_DOWN };
+Button confirmButton = { DIAL_CONFIRM };
 
 bool buttonPressed(Button& button, unsigned long now) {
   bool reading = digitalRead(button.pin);
@@ -96,7 +106,8 @@ void connectWiFi() {
 
 bool httpGet(const String& path, WiFiClientSecure& client, HTTPClient& http) {
   client.setInsecure(); // trusted, fixed host you control - fine to skip cert pinning
-  http.begin(client, String(SERVER_URL) + path + "&theme=" + THEME_NAMES[currentThemeIndex] + "&size=" + SIZE_NAMES[currentSizeIndex]);
+  http.begin(client, String(SERVER_URL) + path + "&theme=" + THEME_NAMES[currentThemeIndex] +
+                         "&size=" + SIZE_NAMES[currentSizeIndex] + "&page=" + String(currentPageIndex));
   http.addHeader("Authorization", String("Bearer ") + ESP32_SECRET_KEY);
   return http.GET() == 200;
 }
@@ -211,6 +222,16 @@ void cycleSize(unsigned long now) {
   forceRefresh(now);
 }
 
+// currentPageIndex is deliberately left unbounded here - the server has no
+// way to tell the firmware how many pages of real events currently exist,
+// so it just wraps whatever index it's sent into range instead.
+void cyclePage(int delta, unsigned long now) {
+  currentPageIndex += delta;
+  Serial.printf("Switched to page index: %d\n", currentPageIndex);
+  showRefreshingScreen();
+  forceRefresh(now);
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(EPD_PWR, OUTPUT);
@@ -219,6 +240,7 @@ void setup() {
   pinMode(EXIT_BUTTON, INPUT_PULLUP);
   pinMode(DIAL_UP, INPUT_PULLUP);
   pinMode(DIAL_DOWN, INPUT_PULLUP);
+  pinMode(DIAL_CONFIRM, INPUT_PULLUP);
 
   preferences.begin("inkcal", false);
   currentThemeIndex = preferences.getUInt("theme", 0) % THEME_COUNT;
@@ -248,16 +270,22 @@ void loop() {
   }
 
   if (buttonPressed(dialUpButton, now)) {
-    switchTheme(1, now);
+    cyclePage(1, now);
     return;
   }
 
   if (buttonPressed(dialDownButton, now)) {
-    switchTheme(-1, now);
+    cyclePage(-1, now);
+    return;
+  }
+
+  if (buttonPressed(confirmButton, now)) {
+    switchTheme(1, now);
     return;
   }
 
   if (now - lastFullRefresh >= REFRESH_INTERVAL_MS) {
+    currentPageIndex = 0; // calendar content has moved on regardless of where the user last paged to
     forceRefresh(now);
     return;
   }
