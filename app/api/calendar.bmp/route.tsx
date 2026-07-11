@@ -27,7 +27,7 @@ const sizeNames = Object.keys(SIZE_PRESETS);
 
 // The canvas is a fixed 300px tall - "medium" already has no headroom
 // for 4 events, so "large" shows fewer of them instead of clipping.
-const MAX_EVENTS_FOR_SIZE: Record<string, number> = { small: 4, medium: 4, large: 2 };
+const MAX_EVENTS_FOR_SIZE: Record<string, number> = { small: 4, medium: 3, large: 2 };
 
 const MOCK_EVENTS: CalendarEventSummary[] = [
   { time: '9:00 AM', title: 'Standup', isToday: true, dayLabel: '' },
