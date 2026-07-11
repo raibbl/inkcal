@@ -54,7 +54,7 @@ function classic({ events, notification, weather, now, timeZone, fontFamily, can
           events.map((event, i) => (
             <div
               key={i}
-              style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginTop: i === 0 ? s(2) : s(9) }}
+              style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginTop: i === 0 ? s(2) : s(9) }}
             >
               {!event.isToday && (
                 <div
@@ -66,13 +66,14 @@ function classic({ events, notification, weather, now, timeZone, fontFamily, can
                     fontWeight: 700,
                     padding: `${s(2)}px ${s(6)}px`,
                     marginRight: s(8),
+                    marginTop: s(3),
                   }}
                 >
                   {event.dayLabel}
                 </div>
               )}
-              <span style={{ fontSize: s(22), fontWeight: 400, color: '#000' }}>
-                • {event.time} - {truncate(event.title, 10)}
+              <span style={{ fontSize: s(22), fontWeight: 400, color: '#000', flex: 1 }}>
+                • {event.time} - {event.title}
               </span>
             </div>
           ))
@@ -142,11 +143,11 @@ function bigDate({ events, notification, weather, now, timeZone, fontFamily, can
                 borderBottom: i === events.length - 1 ? 'none' : `${s(1)}px solid #000`,
               }}
             >
-              <span style={{ fontSize: s(15), width: s(120), color: '#000' }}>
+              <span style={{ fontSize: s(15), width: s(120), flexShrink: 0, color: '#000' }}>
                 {!event.isToday ? `${event.dayLabel} ` : ''}
                 {event.time}
               </span>
-              <span style={{ fontSize: s(18), fontWeight: 400, color: '#000' }}>{truncate(event.title, 22)}</span>
+              <span style={{ fontSize: s(18), fontWeight: 400, color: '#000', flex: 1 }}>{event.title}</span>
             </div>
           ))
         )}
@@ -213,7 +214,7 @@ function newspaper({ events, notification, weather, now, timeZone, fontFamily, c
               }}
             >
               <span>
-                {event.time} &mdash; {truncate(event.title, 18)}
+                {event.time} &mdash; {event.title}
                 {!event.isToday ? ` (${event.dayLabel})` : ''}
               </span>
             </div>
@@ -271,11 +272,11 @@ function ticket({ events, notification, weather, now, timeZone, fontFamily, canv
                 marginTop: i === 0 ? 0 : s(5),
               }}
             >
-              <span style={{ fontSize: s(17) }}>
-                {truncate(event.title, 16)}
+              <span style={{ fontSize: s(17), flex: 1 }}>
+                {event.title}
                 {!event.isToday ? ` (${event.dayLabel})` : ''}
               </span>
-              <span style={{ fontSize: s(17), fontWeight: 700 }}>{event.time}</span>
+              <span style={{ fontSize: s(17), fontWeight: 700, flexShrink: 0, marginLeft: s(8) }}>{event.time}</span>
             </div>
           ))
         )}
@@ -321,17 +322,17 @@ function chips({ events, notification, weather, now, timeZone, fontFamily, canva
                 display: 'flex',
                 flexDirection: 'row',
                 justifyContent: 'space-between',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 border: `${s(1)}px solid #000`,
                 borderRadius: s(6),
                 padding: `${s(4)}px ${s(8)}px`,
               }}
             >
-              <span style={{ fontSize: s(17) }}>
-                {truncate(event.title, 14)}
+              <span style={{ fontSize: s(17), flex: 1 }}>
+                {event.title}
                 {!event.isToday ? ` (${event.dayLabel})` : ''}
               </span>
-              <span style={{ fontSize: s(17), fontWeight: 700 }}>{event.time}</span>
+              <span style={{ fontSize: s(17), fontWeight: 700, flexShrink: 0, marginLeft: s(8) }}>{event.time}</span>
             </div>
           ))
         )}
