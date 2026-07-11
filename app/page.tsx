@@ -1,17 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-
-// Kept in sync with the theme/size registries in the calendar.bmp route -
-// not imported directly since that file pulls in server-only modules
-// (fs, googleapis) through its type imports, which would leak into this
-// client bundle.
-const THEME_NAMES = ['classic', 'bigDate', 'newspaper', 'ticket', 'chips'];
-const SIZE_NAMES = ['small', 'medium', 'large'];
+import { THEME_NAMES, SIZE_NAMES, ThemeName } from '@/lib/constants';
 
 export default function Home() {
   const [cacheBust, setCacheBust] = useState(0);
-  const [theme, setTheme] = useState(THEME_NAMES[0]);
+  const [theme, setTheme] = useState<ThemeName>(THEME_NAMES[0]);
   const [sizeIndex, setSizeIndex] = useState(SIZE_NAMES.indexOf('medium'));
   const size = SIZE_NAMES[sizeIndex];
 

@@ -2,6 +2,7 @@ import { CalendarEventSummary } from '@/lib/google';
 import { PhoneNotification } from '@/lib/kv';
 import { WeatherSummary } from '@/lib/weather';
 import { FontFamily } from '@/lib/fonts';
+import { ThemeName } from '@/lib/constants';
 
 export interface ThemeProps {
   events: CalendarEventSummary[];
@@ -375,7 +376,11 @@ interface ThemeDefinition {
   render: (props: ThemeProps) => JSX.Element;
 }
 
-export const themes: Record<string, ThemeDefinition> = {
+// Typed as Record<ThemeName, ...> rather than Record<string, ...> so
+// adding/removing/renaming a theme here without updating THEME_NAMES in
+// lib/constants.ts (or vice versa) is a compile error instead of a
+// silent runtime mismatch.
+export const themes: Record<ThemeName, ThemeDefinition> = {
   classic: { fontFamily: 'monospace', render: classic },
   bigDate: { fontFamily: 'sans-serif', render: bigDate },
   newspaper: { fontFamily: 'serif', render: newspaper },
@@ -383,5 +388,4 @@ export const themes: Record<string, ThemeDefinition> = {
   chips: { fontFamily: 'sans-serif', render: chips },
 };
 
-export const themeNames = Object.keys(themes);
-export const DEFAULT_THEME = 'classic';
+export const DEFAULT_THEME: ThemeName = 'classic';

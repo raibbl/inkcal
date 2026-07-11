@@ -4,7 +4,7 @@ export interface PhoneNotification {
   receivedAt: string;
 }
 
-const NOTIFICATION_TTL_MS = 6 * 60 * 60 * 1000;
+const NOTIFICATION_TTL_MS = 30 * 60 * 1000;
 
 let latestNotification: PhoneNotification | null = null;
 
@@ -22,4 +22,12 @@ export function getActiveNotification(): PhoneNotification | null {
   }
 
   return latestNotification;
+}
+
+// Called when the MENU button explicitly requests ?ack=1 - a manual
+// refresh counts as "seen", so it clears immediately rather than
+// waiting out the TTL. Other triggers (theme/size/page switches, the
+// automatic polling timers) don't acknowledge.
+export function clearNotification(): void {
+  latestNotification = null;
 }

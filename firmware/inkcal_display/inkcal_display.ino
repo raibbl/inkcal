@@ -104,19 +104,24 @@ void connectWiFi() {
   Serial.println(" connected");
 }
 
-bool httpGet(const String& path, WiFiClientSecure& client, HTTPClient& http) {
+bool httpGet(const String& path, WiFiClientSecure& client, HTTPClient& http, bool acknowledge = false) {
   client.setInsecure(); // trusted, fixed host you control - fine to skip cert pinning
-  http.begin(client, String(SERVER_URL) + path + "&theme=" + THEME_NAMES[currentThemeIndex] +
-                         "&size=" + SIZE_NAMES[currentSizeIndex] + "&page=" + String(currentPageIndex));
+  String url = String(SERVER_URL) + path + "&theme=" + THEME_NAMES[currentThemeIndex] +
+               "&size=" + SIZE_NAMES[currentSizeIndex] + "&page=" + String(currentPageIndex);
+  if (acknowledge) url += "&ack=1";
+  http.begin(client, url);
   http.addHeader("Authorization", String("Bearer ") + ESP32_SECRET_KEY);
   return http.GET() == 200;
 }
 
-bool fetchBitmap() {
+// acknowledge=true tells the server this fetch counts as "seen" - only
+// the MENU button's manual refresh passes true, clearing any pending
+// phone notification immediately instead of waiting out its TTL.
+bool fetchBitmap(bool acknowledge = false) {
   WiFiClientSecure client;
   HTTPClient http;
 
-  if (!httpGet("/api/calendar.bmp?format=raw", client, http)) {
+  if (!httpGet("/api/calendar.bmp?format=raw", client, http, acknowledge)) {
     Serial.println("Bitmap fetch failed");
     http.end();
     return false;
@@ -197,8 +202,8 @@ void showRefreshingScreen() {
   } while (display.nextPage());
 }
 
-void forceRefresh(unsigned long now) {
-  if (fetchBitmap()) {
+void forceRefresh(unsigned long now, bool acknowledge = false) {
+  if (fetchBitmap(acknowledge)) {
     drawBitmapToDisplay();
   }
   lastSignature = fetchChangeSignature();
@@ -258,9 +263,9 @@ void loop() {
   unsigned long now = millis();
 
   if (buttonPressed(menuButton, now)) {
-    Serial.println("MENU button pressed - forcing refresh");
+    Serial.println("MENU button pressed - forcing refresh (acknowledges any pending notification)");
     showRefreshingScreen();
-    forceRefresh(now);
+    forceRefresh(now, true);
     return;
   }
 
