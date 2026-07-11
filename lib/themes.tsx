@@ -13,6 +13,15 @@ export interface ThemeProps {
   canvasWidth: number;
   canvasHeight: number;
   scale: (n: number) => number;
+  page: number;
+  totalPages: number;
+}
+
+// Only ever shown once there's more than one page of events to page through -
+// reuses each theme's existing " · "-separated header line rather than an
+// overlaid badge, so it can't collide with per-theme layout.
+function pageSuffix(page: number, totalPages: number): string {
+  return totalPages > 1 ? ` · ${page + 1}/${totalPages}` : '';
 }
 
 // The canvas is a fixed 400x300 - there's no scrolling or dynamic growth,
@@ -23,12 +32,14 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-function classic({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s }: ThemeProps) {
+function classic({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s, page, totalPages }: ThemeProps) {
   const headerDate = now
     .toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'short', day: 'numeric' })
     .toUpperCase();
   const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
-  const subheaderText = weather ? `U@ ${headerTime} · ${weather.tempF}°F ${weather.condition}` : `U@ ${headerTime}`;
+  const subheaderText =
+    (weather ? `U@ ${headerTime} · ${weather.tempF}°F ${weather.condition}` : `U@ ${headerTime}`) +
+    pageSuffix(page, totalPages);
 
   return (
     <div
@@ -90,7 +101,7 @@ function classic({ events, notification, weather, now, timeZone, fontFamily, can
   );
 }
 
-function bigDate({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s }: ThemeProps) {
+function bigDate({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s, page, totalPages }: ThemeProps) {
   const dayNumber = now.toLocaleDateString('en-US', { timeZone, day: 'numeric' });
   const weekday = now.toLocaleDateString('en-US', { timeZone, weekday: 'long' });
   const monthYear = now.toLocaleDateString('en-US', { timeZone, month: 'long', year: 'numeric' });
@@ -121,7 +132,7 @@ function bigDate({ events, notification, weather, now, timeZone, fontFamily, can
           <span style={{ fontSize: s(18), color: '#fff' }}>{weekday}</span>
           <span style={{ fontSize: s(16), color: '#fff' }}>{monthYear}</span>
         </div>
-        <span style={{ fontSize: s(14), color: '#fff', marginLeft: 'auto' }}>U@ {headerTime}</span>
+        <span style={{ fontSize: s(14), color: '#fff', marginLeft: 'auto' }}>U@ {headerTime}{pageSuffix(page, totalPages)}</span>
       </div>
       {weather && (
         <div style={{ display: 'flex', fontSize: s(17), color: '#000', padding: `${s(4)}px ${s(10)}px 0` }}>
@@ -171,12 +182,13 @@ function bigDate({ events, notification, weather, now, timeZone, fontFamily, can
   );
 }
 
-function newspaper({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s }: ThemeProps) {
+function newspaper({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s, page, totalPages }: ThemeProps) {
   const headerDate = now.toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'short', day: 'numeric' });
   const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
-  const subheaderText = weather
-    ? `${headerDate} - U@ ${headerTime} - ${weather.tempF}°F ${weather.condition}`
-    : `${headerDate} - U@ ${headerTime}`;
+  const subheaderText =
+    (weather
+      ? `${headerDate} - U@ ${headerTime} - ${weather.tempF}°F ${weather.condition}`
+      : `${headerDate} - U@ ${headerTime}`) + pageSuffix(page, totalPages);
 
   return (
     <div
@@ -231,7 +243,7 @@ function newspaper({ events, notification, weather, now, timeZone, fontFamily, c
   );
 }
 
-function ticket({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s }: ThemeProps) {
+function ticket({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s, page, totalPages }: ThemeProps) {
   const headerDate = now.toLocaleDateString('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
   const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
 
@@ -251,7 +263,7 @@ function ticket({ events, notification, weather, now, timeZone, fontFamily, canv
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
         <span style={{ fontSize: s(21), fontWeight: 700 }}>{headerDate}</span>
         <span style={{ fontSize: s(17), color: '#000' }}>
-          {weather ? `${weather.tempF}°F ${weather.condition}` : `U@ ${headerTime}`}
+          {(weather ? `${weather.tempF}°F ${weather.condition}` : `U@ ${headerTime}`) + pageSuffix(page, totalPages)}
         </span>
       </div>
       <span style={{ fontSize: s(15), color: '#000', marginTop: s(1) }}>U@ {headerTime}</span>
@@ -291,10 +303,12 @@ function ticket({ events, notification, weather, now, timeZone, fontFamily, canv
   );
 }
 
-function chips({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s }: ThemeProps) {
+function chips({ events, notification, weather, now, timeZone, fontFamily, canvasWidth, canvasHeight, scale: s, page, totalPages }: ThemeProps) {
   const headerDate = now.toLocaleDateString('en-US', { timeZone, weekday: 'long', month: 'short', day: 'numeric' });
   const headerTime = now.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit', hour12: true });
-  const subheaderText = weather ? `U@ ${headerTime} · ${weather.tempF}°F ${weather.condition}` : `U@ ${headerTime}`;
+  const subheaderText =
+    (weather ? `U@ ${headerTime} · ${weather.tempF}°F ${weather.condition}` : `U@ ${headerTime}`) +
+    pageSuffix(page, totalPages);
 
   return (
     <div

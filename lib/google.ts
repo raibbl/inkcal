@@ -35,20 +35,24 @@ function getCalendarClient(): calendar_v3.Calendar {
 
 export async function fetchNextEvents(
   calendarId: string,
-  maxResults = 4
+  maxResults = 4,
+  daysAhead = 7
 ): Promise<CalendarEventSummary[]> {
   const calendar = getCalendarClient();
 
+  const today = new Date();
+  const timeMax = new Date(today.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+
   const res = await calendar.events.list({
     calendarId,
-    timeMin: new Date().toISOString(),
+    timeMin: today.toISOString(),
+    timeMax: timeMax.toISOString(),
     maxResults,
     singleEvents: true,
     orderBy: 'startTime',
   });
 
   const events = res.data.items ?? [];
-  const today = new Date();
 
   return events.map((event) => {
     const start = event.start?.dateTime ?? event.start?.date;

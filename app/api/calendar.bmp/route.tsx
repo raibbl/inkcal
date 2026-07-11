@@ -29,6 +29,14 @@ const sizeNames = Object.keys(SIZE_PRESETS);
 // for 4 events, so "large" shows fewer of them instead of clipping.
 const MAX_EVENTS_FOR_SIZE: Record<string, number> = { small: 4, medium: 3, large: 2 };
 
+// Fetched once per request and paged through client-side (dial Up/Down)
+// rather than re-fetched per page. Bounded to a real week rather than a
+// fixed count, so pagination naturally covers "this week" regardless of
+// how densely booked it is - MAX_EVENT_FETCH_CAP just guards against a
+// pathologically over-booked week blowing up the render.
+const DAYS_AHEAD = 7;
+const MAX_EVENT_FETCH_CAP = 40;
+
 const MOCK_EVENTS: CalendarEventSummary[] = [
   { time: '9:00 AM', title: 'Standup', isToday: true, dayLabel: '' },
   { time: '11:30 AM', title: 'PR Review', isToday: true, dayLabel: '' },
@@ -81,7 +89,7 @@ export async function GET(req: NextRequest) {
   const [events, notification, weather] = isMock
     ? [MOCK_EVENTS, MOCK_NOTIFICATION, MOCK_WEATHER]
     : await Promise.all([
-        fetchNextEvents(process.env.GOOGLE_CALENDAR_ID ?? 'primary', 4),
+        fetchNextEvents(process.env.GOOGLE_CALENDAR_ID ?? 'primary', MAX_EVENT_FETCH_CAP, DAYS_AHEAD),
         Promise.resolve(getActiveNotification()),
         process.env.WEATHER_LAT && process.env.WEATHER_LON
           ? fetchWeather(process.env.WEATHER_LAT, process.env.WEATHER_LON)
@@ -99,12 +107,22 @@ export async function GET(req: NextRequest) {
   const sizeName = sizeNames.includes(requestedSize) ? requestedSize : DEFAULT_SIZE;
   const sizeMultiplier = SIZE_PRESETS[sizeName];
 
+  const windowSize = MAX_EVENTS_FOR_SIZE[sizeName];
+  const totalPages = Math.max(1, Math.ceil(events.length / windowSize));
+  // The firmware just increments/decrements an arbitrary counter (it has no
+  // way to know how many pages of real events exist) - wrap it into range
+  // here rather than expecting the caller to know totalPages in advance.
+  const requestedPage = parseInt(req.nextUrl.searchParams.get('page') ?? '0', 10);
+  const page = ((Number.isFinite(requestedPage) ? requestedPage : 0) % totalPages + totalPages) % totalPages;
+
   if (req.nextUrl.searchParams.get('format') === 'json') {
     return NextResponse.json({
       theme: themeName,
       availableThemes: themeNames,
       size: sizeName,
       availableSizes: sizeNames,
+      page,
+      totalPages,
       events,
       notification,
       weather,
@@ -117,7 +135,7 @@ export async function GET(req: NextRequest) {
   const canvasWidth = WIDTH * SUPERSAMPLE;
   const canvasHeight = HEIGHT * SUPERSAMPLE;
   const contentScale = (n: number) => n * SUPERSAMPLE * sizeMultiplier;
-  const visibleEvents = events.slice(0, MAX_EVENTS_FOR_SIZE[sizeName]);
+  const visibleEvents = events.slice(page * windowSize, (page + 1) * windowSize);
 
   const rendered = new ImageResponse(
     theme.render({
@@ -130,6 +148,8 @@ export async function GET(req: NextRequest) {
       canvasWidth,
       canvasHeight,
       scale: contentScale,
+      page,
+      totalPages,
     }),
     { width: canvasWidth, height: canvasHeight, fonts: devFont }
   );
