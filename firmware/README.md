@@ -51,11 +51,21 @@ much more often than this without a reason.
 
 - **MENU** (GPIO2): forces an immediate refresh, showing a "Refreshing..."
   screen first so it's obvious the press registered.
-- **Dial Up/Down** (GPIO6/GPIO4): cycles through the server's themes
-  (`classic`, `bigDate`, `newspaper`, `ticket`, `chips` - must match
+- **Dial Up/Down** (GPIO6/GPIO4): pages forward/back through the current
+  week's events (`?page=N` on the server). The server fetches events for
+  the next 7 days and wraps whatever page index the firmware sends into
+  whatever page count currently exists - the firmware doesn't track how
+  many pages there are, it just increments/decrements an int and lets
+  the server sort it out. Not persisted to flash - resets to page 0 on
+  the periodic 15-minute refresh (see below) since the week's content
+  has moved on regardless of where you last paged to.
+- **Dial Confirm** (GPIO5): cycles through the server's themes, forward
+  only (`classic`, `bigDate`, `newspaper`, `ticket`, `chips` - must match
   `themeNames` in `lib/themes.tsx`), saving the choice to flash (NVS)
-  via `Preferences` so it survives a reboot or the **RESET** button.
-- **EXIT** and the dial's **Confirm** aren't wired to anything yet.
+  via `Preferences` so it survives a reboot or the **RESET** button. One
+  button, one direction - same pattern EXIT already uses for size.
+- **EXIT** (GPIO1): cycles the size preset (`small`/`medium`/`large`),
+  also persisted to flash.
 - **RESET** is a hardware reset tied directly to the chip's EN pin - it's
   not firmware-controlled, it just reboots the board like a power cycle.
 

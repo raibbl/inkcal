@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
+import { safeEqual } from '@/lib/auth';
 import { setNotification } from '@/lib/kv';
 
 function isAuthorized(req: NextRequest): boolean {
   const provided = req.headers.get('x-webhook-secret') ?? '';
   const expected = process.env.PHONE_WEBHOOK_SECRET ?? '';
-  if (!expected || provided.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  return safeEqual(provided, expected);
 }
 
 export async function POST(req: NextRequest) {

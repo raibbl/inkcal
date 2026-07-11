@@ -1,3 +1,22 @@
+// Packs one row of thresholded grayscale pixels (values already 0 or 255)
+// into `bytesPerRow` MSB-first bits, writing them into `dest` starting at
+// `destOffset`. Shared by both encoders below - they differ only in row
+// order (top-down vs bottom-up) and row spacing (padded vs not), not in
+// how a single row gets bit-packed.
+function packRow(pixels: Buffer, y: number, width: number, bytesPerRow: number, dest: Buffer, destOffset: number): void {
+  for (let byteIndex = 0; byteIndex < bytesPerRow; byteIndex++) {
+    let byte = 0;
+    for (let bit = 0; bit < 8; bit++) {
+      const x = byteIndex * 8 + bit;
+      if (x >= width) break;
+      if (pixels[y * width + x] >= 128) {
+        byte |= 1 << (7 - bit);
+      }
+    }
+    dest[destOffset + byteIndex] = byte;
+  }
+}
+
 /**
  * Encodes a raw single-channel 8-bit grayscale buffer (values already
  * thresholded to 0 or 255) into a real 1-bit-per-pixel BMP file.
@@ -36,23 +55,11 @@ export function toMonochromeBmp(pixels: Buffer, width: number, height: number): 
   buffer.writeUInt32LE(0x00ffffff, 58);
 
   const bytesPerRow = Math.ceil(width / 8);
-  let offset = headerSize;
 
-  for (let y = height - 1; y >= 0; y--) {
-    const rowStart = offset;
-    for (let byteIndex = 0; byteIndex < bytesPerRow; byteIndex++) {
-      let byte = 0;
-      for (let bit = 0; bit < 8; bit++) {
-        const x = byteIndex * 8 + bit;
-        if (x >= width) break;
-        if (pixels[y * width + x] >= 128) {
-          byte |= 1 << (7 - bit);
-        }
-      }
-      buffer.writeUInt8(byte, offset);
-      offset += 1;
-    }
-    offset = rowStart + rowSize; // skip row padding (already zeroed by Buffer.alloc)
+  for (let row = 0; row < height; row++) {
+    const y = height - 1 - row; // BMP rows are bottom-up
+    packRow(pixels, y, width, bytesPerRow, buffer, headerSize + row * rowSize);
+    // any bytes between bytesPerRow and rowSize are padding, already zeroed by Buffer.alloc
   }
 
   return buffer;
@@ -71,17 +78,7 @@ export function toPackedMonochrome(pixels: Buffer, width: number, height: number
   const buffer = Buffer.alloc(bytesPerRow * height);
 
   for (let y = 0; y < height; y++) {
-    for (let byteIndex = 0; byteIndex < bytesPerRow; byteIndex++) {
-      let byte = 0;
-      for (let bit = 0; bit < 8; bit++) {
-        const x = byteIndex * 8 + bit;
-        if (x >= width) break;
-        if (pixels[y * width + x] >= 128) {
-          byte |= 1 << (7 - bit);
-        }
-      }
-      buffer[y * bytesPerRow + byteIndex] = byte;
-    }
+    packRow(pixels, y, width, bytesPerRow, buffer, y * bytesPerRow);
   }
 
   return buffer;

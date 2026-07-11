@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ImageResponse } from 'next/og';
 import sharp from 'sharp';
-import { timingSafeEqual } from 'crypto';
+import { safeEqual } from '@/lib/auth';
+import { THEME_NAMES, SIZE_NAMES, ThemeName, SizeName } from '@/lib/constants';
 import { fetchNextEvents, CalendarEventSummary } from '@/lib/google';
-import { getActiveNotification, PhoneNotification } from '@/lib/kv';
+import { getActiveNotification, clearNotification, PhoneNotification } from '@/lib/kv';
 import { toMonochromeBmp, toPackedMonochrome } from '@/lib/bmp';
 import { loadDevFont, fontFamilyCss } from '@/lib/fonts';
 import { fetchWeather, WeatherSummary } from '@/lib/weather';
-import { themes, themeNames, DEFAULT_THEME } from '@/lib/themes';
+import { themes, DEFAULT_THEME } from '@/lib/themes';
+
+// Narrows a query-param string to one of a known set of valid values,
+// falling back to a default - used for ?theme= and ?size= below so an
+// unrecognized or missing value can't reach code that assumes it's valid.
+function pickValid<T extends string>(value: string, valid: readonly T[], fallback: T): T {
+  return (valid as readonly string[]).includes(value) ? (value as T) : fallback;
+}
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs'; // sharp needs Node's runtime, not Edge
@@ -16,18 +24,25 @@ const WIDTH = 400;
 const HEIGHT = 300;
 const SUPERSAMPLE = 4; // render at 4x, then downscale before thresholding for cleaner edges
 
-// Scales content (fonts/spacing) within the canvas - NOT the canvas
+// One Record per size instead of two parallel ones - a typo or a
+// forgotten update to just one of two maps would silently produce
+// windowSize=undefined, then totalPages=NaN, then an empty page (slice()
+// treats NaN as 0) with no error anywhere. Typed as Record<SizeName, ...>
+// so a mismatch with SIZE_NAMES in lib/constants.ts is a compile error.
+//
+// scale: multiplies fonts/spacing within the canvas - NOT the canvas
 // itself, which must always be exactly SUPERSAMPLE*WIDTH/HEIGHT so the
 // final sharp resize still lands on the fixed 400x300 physical output.
-// Scaling both together and resizing to a fixed size would cancel out,
-// with zero visible difference.
-const SIZE_PRESETS: Record<string, number> = { small: 0.9, medium: 1, large: 1.08 };
-const DEFAULT_SIZE = 'medium';
-const sizeNames = Object.keys(SIZE_PRESETS);
-
-// The canvas is a fixed 300px tall - "medium" already has no headroom
-// for 4 events, so "large" shows fewer of them instead of clipping.
-const MAX_EVENTS_FOR_SIZE: Record<string, number> = { small: 4, medium: 3, large: 2 };
+//
+// maxEvents: the canvas is a fixed 300px tall - "medium" already has no
+// headroom for 4 events, so "large" shows fewer of them per page instead
+// of clipping.
+const SIZE_CONFIG: Record<SizeName, { scale: number; maxEvents: number }> = {
+  small: { scale: 0.9, maxEvents: 4 },
+  medium: { scale: 1, maxEvents: 3 },
+  large: { scale: 1.08, maxEvents: 2 },
+};
+const DEFAULT_SIZE: SizeName = 'medium';
 
 // Fetched once per request and paged through client-side (dial Up/Down)
 // rather than re-fetched per page. Bounded to a real week rather than a
@@ -57,22 +72,12 @@ function isAuthorized(req: NextRequest): boolean {
 
   // Primary path: ESP32 sends Authorization: Bearer <key>.
   const providedHeader = req.headers.get('authorization') ?? '';
-  const expectedHeader = `Bearer ${expectedKey}`;
-  if (
-    providedHeader.length === expectedHeader.length &&
-    timingSafeEqual(Buffer.from(providedHeader), Buffer.from(expectedHeader))
-  ) {
-    return true;
-  }
+  if (safeEqual(providedHeader, `Bearer ${expectedKey}`)) return true;
 
   // Fallback: ?key=<key> query param, so a plain link (browser, WhatsApp
   // preview, etc.) works without being able to set a custom header.
   const providedQueryKey = req.nextUrl.searchParams.get('key') ?? '';
-  if (providedQueryKey.length === expectedKey.length && expectedKey.length > 0) {
-    return timingSafeEqual(Buffer.from(providedQueryKey), Buffer.from(expectedKey));
-  }
-
-  return false;
+  return safeEqual(providedQueryKey, expectedKey);
 }
 
 export async function GET(req: NextRequest) {
@@ -96,18 +101,24 @@ export async function GET(req: NextRequest) {
           : Promise.resolve(null),
       ]);
 
+  // A manual MENU-button refresh counts as "seen" - clear it so it
+  // doesn't keep showing until the 30-minute TTL. This still renders in
+  // the response the user is about to see; only the *next* request
+  // won't have it. Theme/size/page switches and the automatic polling
+  // timers don't send ?ack=1, so they never clear it on their own.
+  if (!isMock && notification && req.nextUrl.searchParams.get('ack') === '1') {
+    clearNotification();
+  }
+
   const timeZone = process.env.DISPLAY_TIMEZONE || 'UTC';
   const now = new Date();
 
-  const requestedTheme = req.nextUrl.searchParams.get('theme') ?? DEFAULT_THEME;
-  const themeName = themeNames.includes(requestedTheme) ? requestedTheme : DEFAULT_THEME;
+  const themeName = pickValid(req.nextUrl.searchParams.get('theme') ?? DEFAULT_THEME, THEME_NAMES, DEFAULT_THEME);
   const theme = themes[themeName];
 
-  const requestedSize = req.nextUrl.searchParams.get('size') ?? DEFAULT_SIZE;
-  const sizeName = sizeNames.includes(requestedSize) ? requestedSize : DEFAULT_SIZE;
-  const sizeMultiplier = SIZE_PRESETS[sizeName];
+  const sizeName = pickValid(req.nextUrl.searchParams.get('size') ?? DEFAULT_SIZE, SIZE_NAMES, DEFAULT_SIZE);
+  const { scale: sizeMultiplier, maxEvents: windowSize } = SIZE_CONFIG[sizeName];
 
-  const windowSize = MAX_EVENTS_FOR_SIZE[sizeName];
   const totalPages = Math.max(1, Math.ceil(events.length / windowSize));
   // The firmware just increments/decrements an arbitrary counter (it has no
   // way to know how many pages of real events exist) - wrap it into range
@@ -118,9 +129,9 @@ export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get('format') === 'json') {
     return NextResponse.json({
       theme: themeName,
-      availableThemes: themeNames,
+      availableThemes: THEME_NAMES,
       size: sizeName,
-      availableSizes: sizeNames,
+      availableSizes: SIZE_NAMES,
       page,
       totalPages,
       events,
